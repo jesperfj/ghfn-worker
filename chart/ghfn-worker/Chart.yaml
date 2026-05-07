@@ -1,0 +1,33 @@
+apiVersion: v2
+name: ghfn-worker
+description: |
+  ConfigHub function worker that pulls function implementations
+  (bash, python, anything chmod +x) from a GitHub repo and registers
+  each as a worker-scoped function with ConfigHub.
+
+  The worker reads functions/<name>/{manifest.yaml, run} from the
+  configured repo, parses each manifest into a FunctionSignature,
+  and dispatches invocations to the corresponding `run` script.
+
+type: application
+
+# Version + appVersion are placeholders. CI overwrites both with the
+# stripped git tag (e.g., `v0.2.0` -> `0.2.0`) at release-package time so
+# the chart and image always ship lockstep at the same semver. Don't
+# update these by hand — bump the git tag instead.
+version: 0.0.0-dev
+appVersion: "0.0.0-dev"
+
+home: https://github.com/jesperfj/ghfn-worker
+sources:
+  - https://github.com/jesperfj/ghfn-worker
+
+keywords:
+  - confighub
+  - functions
+  - bridge-worker
+  - github
+
+maintainers:
+  - name: Jesper
+    url: https://github.com/jesperfj

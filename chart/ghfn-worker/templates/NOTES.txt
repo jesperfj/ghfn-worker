@@ -1,0 +1,49 @@
+{{- $fullname := printf "%s-%s" .Release.Name .Chart.Name -}}
+ghfn-worker installed.
+
+The Deployment renders with placeholders (`confighubplaceholder`) for
+CONFIGHUB_WORKER_ID and REPO_URL, and references a Secret named
+{{ $fullname }}-secret. Fill these in before applying to the cluster.
+
+------------------------------------------------------------------------
+1. Register a worker in ConfigHub:
+
+     cub worker create --space <SPACE> {{ .Release.Name }}
+     # captures: bridge_worker_id (UUID) + worker_secret
+
+2. Create the Secret the chart references. Required key:
+   CONFIGHUB_WORKER_SECRET. Optional key: token (GitHub PAT, only for
+   private repos):
+
+     # public repo, worker auth only:
+     kubectl -n {{ .Release.Namespace }} create secret generic {{ $fullname }}-secret \
+       --from-literal=CONFIGHUB_WORKER_SECRET=<WORKER_SECRET>
+
+     # private repo, add a token key:
+     kubectl -n {{ .Release.Namespace }} create secret generic {{ $fullname }}-secret \
+       --from-literal=CONFIGHUB_WORKER_SECRET=<WORKER_SECRET> \
+       --from-literal=token=<GITHUB_PAT>
+
+3. Edit the placeholder env values. With cub:
+
+     cub function do --space <SPACE> --where "Slug = '{{ $fullname }}'" \
+       set-string-path \
+       'spec.template.spec.containers[0].env[?name=="CONFIGHUB_WORKER_ID"].value' \
+       <BRIDGE_WORKER_ID>
+
+     cub function do --space <SPACE> --where "Slug = '{{ $fullname }}'" \
+       set-string-path \
+       'spec.template.spec.containers[0].env[?name=="REPO_URL"].value' \
+       https://github.com/<owner>/<repo>
+
+   With plain helm:
+
+     kubectl -n {{ .Release.Namespace }} set env deploy/{{ $fullname }} \
+       CONFIGHUB_WORKER_ID=<BRIDGE_WORKER_ID> \
+       REPO_URL=https://github.com/<owner>/<repo>
+
+4. Apply (cub flow only — plain helm already applied at step 0):
+
+     cub apply --space <SPACE> \
+       --where "Labels.app.kubernetes.io/instance = '{{ .Release.Name }}'"
+------------------------------------------------------------------------

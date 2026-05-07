@@ -1,0 +1,16 @@
+# Rendered manifests (local-dev Makefile flow)
+.rendered/
+
+# Local function repo used for hostPath dev mode
+dev-repo/
+
+# Editor / tooling metadata
+.claude/
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Helm packages produced locally
+*.tgz

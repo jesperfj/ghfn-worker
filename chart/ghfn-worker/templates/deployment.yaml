@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}-{{ .Chart.Name }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: worker
+          image: "ghcr.io/jesperfj/ghfn-worker:{{ default .Chart.AppVersion (.Values.image).tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" (.Values.image).pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            readOnlyRootFilesystem: false
+          env:
+            # ----------------------------------------------------------------
+            # Edit these post-render. Either via `cub function do
+            # set-string-path '...env[?name=="X"].value' <new-value>` (cub
+            # flow) or `kubectl set env deploy/<name> X=<new-value>` (helm).
+            # ----------------------------------------------------------------
+            - name: CONFIGHUB_WORKER_ID
+              value: confighubplaceholder
+            - name: CONFIGHUB_URL
+              value: https://hub.confighub.com
+            - name: REPO_URL
+              value: confighubplaceholder
+            - name: REPO_BRANCH
+              value: main
+            - name: REPO_DIR
+              value: /repo
+            # ----------------------------------------------------------------
+            # Secret material — never templated into the manifest. Pre-create
+            # a Secret named "<release>-<chart>-secret" with key
+            # CONFIGHUB_WORKER_SECRET. Optionally add a `token` key with a
+            # GitHub PAT for private repos. Edit this name post-render if you
+            # want to point at a different Secret.
+            # ----------------------------------------------------------------
+            - name: CONFIGHUB_WORKER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-{{ .Chart.Name }}-secret
+                  key: CONFIGHUB_WORKER_SECRET
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-{{ .Chart.Name }}-secret
+                  key: token
+                  optional: true
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      volumes:
+        # The worker clones REPO_URL into /repo at startup. emptyDir means
+        # a fresh clone every pod start; for refresh-without-restart, invoke
+        # the worker's `refresh-function-repo` builtin (or send SIGHUP).
+        - name: repo
+          emptyDir: {}

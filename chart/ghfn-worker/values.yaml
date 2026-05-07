@@ -1,0 +1,13 @@
+# values.yaml — ghfn-worker
+#
+# Intentionally near-empty. ConfigHub philosophy: the rendered manifest is
+# the source of truth. Edit anything you need to change via:
+#
+#   - cub flow:  cub function do --where "Slug='<release>'" set-string-path '<json-path>' <value>
+#   - helm flow: kubectl set env / kubectl edit deploy / helm upgrade --set
+#
+# You can also override at install time via `--set foo=bar` even though no
+# fields are pre-defined here — Helm passes the flag through to the template.
+# The most common one is `--set image.tag=<custom>` for testing a build that
+# isn't tagged in the registry yet. Defaults the chart uses are visible in
+# templates/deployment.yaml.

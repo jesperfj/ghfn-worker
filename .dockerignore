@@ -1,0 +1,13 @@
+.git
+.gitignore
+.dockerignore
+.idea
+.vscode
+.claude
+.rendered
+dev-repo
+chart
+**/*_test.go
+*.md
+Makefile
+Dockerfile
