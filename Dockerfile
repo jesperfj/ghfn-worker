@@ -9,7 +9,13 @@
 ###############
 # Build stage #
 ###############
-FROM golang:1.25-alpine AS builder
+# --platform=$BUILDPLATFORM pins the builder to the host arch so the Go
+# compile runs natively (no QEMU). We still produce a target-arch binary by
+# passing GOOS/GOARCH from buildx's TARGETOS/TARGETARCH args. The runtime
+# stage below isn't pinned, so it pulls an arch-matched alpine per target —
+# a few small `apk add`s under QEMU is fine, but the Go compile (the slow
+# part) stays native.
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -18,9 +24,11 @@ RUN go mod download
 COPY main.go ./
 COPY internal/ ./internal/
 
+ARG TARGETOS
 ARG TARGETARCH
-ENV CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64}
-RUN go build -ldflags="-s -w" -o /out/worker .
+ENV CGO_ENABLED=0
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -ldflags="-s -w" -o /out/worker .
 
 #################
 # Runtime stage #
