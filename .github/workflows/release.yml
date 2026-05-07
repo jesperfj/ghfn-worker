@@ -79,6 +79,11 @@ jobs:
 
       - name: Push Helm chart to ghcr.io
         run: |
+          # Push to oci://ghcr.io/jesperfj/charts so the chart lands at
+          # oci://ghcr.io/jesperfj/charts/ghfn-worker:<ver>. Without the
+          # `/charts` subpath, helm push would target ghcr.io/jesperfj/ghfn-worker
+          # — the same OCI tag the container image just got pushed to — and
+          # the chart manifest would clobber the image manifest.
           helm push \
             ghfn-worker-${{ steps.version.outputs.version }}.tgz \
-            oci://ghcr.io/jesperfj
+            oci://ghcr.io/jesperfj/charts
