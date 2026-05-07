@@ -50,8 +50,22 @@ spec:
               value: confighubplaceholder
             - name: REPO_BRANCH
               value: main
+            # REPO_DIR is the worker's git clone target. It's a UID-1000-owned
+            # directory baked into the image (created by the Dockerfile) — NOT
+            # the volume below. Cloning into a Kubernetes-mounted volume would
+            # hit git's "dubious ownership" check, since fsGroup leaves the
+            # mount point root-owned. Keep this as /repo unless you also
+            # update the image.
             - name: REPO_DIR
               value: /repo
+            # LOCAL_REPO_PATH selects local-dev mode: when non-empty, the
+            # worker skips the git clone and reads functions/ straight from
+            # this path. Default empty so the chart ships in git-clone mode.
+            # For local-dev: set this to /local-functions and swap the
+            # emptyDir volume below to a hostPath pointing at your laptop's
+            # function tree.
+            - name: LOCAL_REPO_PATH
+              value: ""
             # ----------------------------------------------------------------
             # Secret material — never templated into the manifest. Pre-create
             # a Secret named "<release>-<chart>-secret" with key
@@ -71,8 +85,8 @@ spec:
                   key: token
                   optional: true
           volumeMounts:
-            - name: repo
-              mountPath: /repo
+            - name: local-functions
+              mountPath: /local-functions
           resources:
             requests:
               cpu: 50m
@@ -81,8 +95,9 @@ spec:
               cpu: 500m
               memory: 256Mi
       volumes:
-        # The worker clones REPO_URL into /repo at startup. emptyDir means
-        # a fresh clone every pod start; for refresh-without-restart, invoke
-        # the worker's `refresh-function-repo` builtin (or send SIGHUP).
-        - name: repo
+        # Reserved for local-dev mode: swap to a hostPath pointing at your
+        # local function tree and set LOCAL_REPO_PATH=/local-functions to
+        # bypass git. Stays as emptyDir in production (unused; the worker
+        # clones REPO_URL into REPO_DIR=/repo, which is in the image).
+        - name: local-functions
           emptyDir: {}
